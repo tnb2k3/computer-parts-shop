@@ -110,7 +110,8 @@ Truy cập: `http://localhost:8000`
 
 ## 📸 Screenshots
 
-> *(Thêm ảnh chụp màn hình giao diện vào đây)*
+![Trang chủ](trangchu.png)
+![Trang sản phẩm](trangsanpham.png)
 
 ---
 
