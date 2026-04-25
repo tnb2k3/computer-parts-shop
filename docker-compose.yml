@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  # PHP Service
+  php:
+    build:
+      context: ./docker/php
+      dockerfile: Dockerfile
+    container_name: computer_shop_php
+    restart: unless-stopped
+    working_dir: /var/www
+    volumes:
+      - ./:/var/www
+    networks:
+      - computer_shop_network
+    depends_on:
+      - mysql
+
+  # MySQL Service
+  mysql:
+    image: mysql:8.0
+    container_name: computer_shop_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: computer_shop
+      MYSQL_ROOT_PASSWORD: root
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./docker/mysql/my.cnf:/etc/mysql/conf.d/my.cnf
+    networks:
+      - computer_shop_network
+    ports:
+      - "3307:3306"
+
+  # Nginx Service
+  nginx:
+    image: nginx:alpine
+    container_name: computer_shop_nginx
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - ./:/var/www
+      - ./docker/nginx/nginx.conf:/etc/nginx/conf.d/default.conf
+    networks:
+      - computer_shop_network
+    depends_on:
+      - php
+
+  # phpMyAdmin Service
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: computer_shop_phpmyadmin
+    restart: unless-stopped
+    ports:
+      - "8081:80"
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      PMA_USER: root
+      PMA_PASSWORD: root
+      UPLOAD_LIMIT: 100M
+    networks:
+      - computer_shop_network
+    depends_on:
+      - mysql
+
+networks:
+  computer_shop_network:
+    driver: bridge
+
+volumes:
+  mysql_data:
+    driver: local
