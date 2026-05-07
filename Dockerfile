@@ -35,11 +35,13 @@ COPY . /var/www
 # Re-run composer to execute post-install scripts
 RUN composer dump-autoload --optimize
 
-# Copy production nginx config
-COPY docker/nginx/nginx-prod.conf /etc/nginx/sites-available/default
-# Remove default nginx config that might conflict
+# Copy production nginx config and remove ALL defaults
 RUN rm -f /etc/nginx/sites-enabled/default \
-    && ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
+    && rm -f /etc/nginx/sites-available/default \
+    && rm -f /etc/nginx/conf.d/default.conf
+COPY docker/nginx/nginx-prod.conf /etc/nginx/sites-available/default
+RUN ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
+COPY docker/nginx/nginx-prod.conf /etc/nginx/conf.d/app.conf
 
 # Copy supervisord config
 COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
