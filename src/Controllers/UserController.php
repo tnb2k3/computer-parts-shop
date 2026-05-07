@@ -143,6 +143,8 @@ class UserController extends Controller
             $this->setSession('pending_verification_email', $email);
             if (!$emailSent) {
                 $this->setSession('email_send_failed', true);
+                // Save OTP to session as fallback when email fails
+                $this->setSession('fallback_otp', $otpCode);
             }
             $this->redirect('/verify-pending');
         } else {
@@ -160,12 +162,15 @@ class UserController extends Controller
         $this->setSession('email_send_failed', null);
         $otpError = $this->getSession('otp_error');
         $this->setSession('otp_error', null);
+        $fallbackOtp = $this->getSession('fallback_otp');
+        $this->setSession('fallback_otp', null);
         
         $this->view('verify-pending', [
             'title' => 'Xác thực email',
             'email' => $email,
             'emailFailed' => $emailFailed,
             'otpError' => $otpError,
+            'fallbackOtp' => $fallbackOtp,
         ]);
     }
 
@@ -244,7 +249,11 @@ class UserController extends Controller
 
         if ($this->userRepo->updateVerificationToken($user->id, $token, $expiresAt)) {
             $name = $user->full_name ?: $user->username;
-            $this->emailService->sendVerificationEmail($email, $name, $token);
+            $emailSent = $this->emailService->sendVerificationEmail($email, $name, $token);
+            if (!$emailSent) {
+                $this->setSession('email_send_failed', true);
+                $this->setSession('fallback_otp', $token);
+            }
         }
 
         $this->setSession('pending_verification_email', $email);

@@ -4,7 +4,12 @@
             <div class="verify-icon">🔐</div>
             <h1>Nhập mã OTP</h1>
             
-            <?php if ($emailFailed ?? false): ?>
+            <?php if (($emailFailed ?? false) && ($fallbackOtp ?? false)): ?>
+                <div class="alert alert-warning">
+                    ⚠️ Không thể gửi email. Mã OTP của bạn là:
+                    <div class="fallback-otp-display"><?= htmlspecialchars($fallbackOtp) ?></div>
+                </div>
+            <?php elseif ($emailFailed ?? false): ?>
                 <div class="alert alert-error">
                     ⚠️ Có lỗi khi gửi email. Vui lòng thử gửi lại.
                 </div>
@@ -186,6 +191,25 @@
     background: #fee;
     color: #c00;
     border: 1px solid #fcc;
+}
+
+.alert-warning {
+    background: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffc107;
+}
+
+.fallback-otp-display {
+    font-size: 32px;
+    font-weight: bold;
+    letter-spacing: 10px;
+    color: #d70018;
+    font-family: 'Courier New', monospace;
+    margin-top: 10px;
+    padding: 10px;
+    background: white;
+    border-radius: 8px;
+    border: 2px dashed #d70018;
 }
 
 .alert-success {
