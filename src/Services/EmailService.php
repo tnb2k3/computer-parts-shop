@@ -17,7 +17,7 @@ class EmailService
 
     public function __construct()
     {
-        // Load environment variables from .env file
+        // Load environment variables from .env file (for local development)
         $envFile = __DIR__ . '/../../.env';
         if (file_exists($envFile)) {
             $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
@@ -25,17 +25,23 @@ class EmailService
                 if (strpos(trim($line), '#') === 0) continue;
                 if (strpos($line, '=') === false) continue;
                 list($key, $value) = explode('=', $line, 2);
-                $_ENV[trim($key)] = trim($value);
+                $key = trim($key);
+                $value = trim($value);
+                // Only set if not already set by system environment
+                if (!getenv($key)) {
+                    $_ENV[$key] = $value;
+                    putenv("$key=$value");
+                }
             }
         }
 
-        // Default Gmail SMTP settings
-        $this->smtpHost = $_ENV['SMTP_HOST'] ?? 'smtp.gmail.com';
-        $this->smtpPort = (int)($_ENV['SMTP_PORT'] ?? 587);
-        $this->smtpUsername = $_ENV['SMTP_USERNAME'] ?? '';
-        $this->smtpPassword = $_ENV['SMTP_PASSWORD'] ?? '';
-        $this->fromEmail = $_ENV['MAIL_FROM_EMAIL'] ?? $this->smtpUsername;
-        $this->fromName = $_ENV['MAIL_FROM_NAME'] ?? 'Computer Shop';
+        // Priority: system env (cloud) > .env file (local)
+        $this->smtpHost = getenv('SMTP_HOST') ?: ($_ENV['SMTP_HOST'] ?? 'smtp.gmail.com');
+        $this->smtpPort = (int)(getenv('SMTP_PORT') ?: ($_ENV['SMTP_PORT'] ?? 587));
+        $this->smtpUsername = getenv('SMTP_USERNAME') ?: ($_ENV['SMTP_USERNAME'] ?? '');
+        $this->smtpPassword = getenv('SMTP_PASSWORD') ?: ($_ENV['SMTP_PASSWORD'] ?? '');
+        $this->fromEmail = getenv('MAIL_FROM_EMAIL') ?: ($_ENV['MAIL_FROM_EMAIL'] ?? $this->smtpUsername);
+        $this->fromName = getenv('MAIL_FROM_NAME') ?: ($_ENV['MAIL_FROM_NAME'] ?? 'Computer Shop');
     }
 
     /**

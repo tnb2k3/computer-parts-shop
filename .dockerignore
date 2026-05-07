@@ -1,0 +1,10 @@
+.git
+.gitignore
+.env
+.composer
+docker-compose.yml
+reset-database.ps1
+read/
+README.md
+*.log
+.DS_Store
