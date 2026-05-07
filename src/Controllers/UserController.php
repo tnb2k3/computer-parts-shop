@@ -132,27 +132,19 @@ class UserController extends Controller
         $user->role = 'customer';
         $user->email_verified = false;
         
-        // Generate verification token
-        $token = $user->generateVerificationToken();
+        // Generate 6-digit OTP
+        $otpCode = $user->generateVerificationToken();
 
         if ($this->userRepo->create($user)) {
-            // Auto-verify email on production (SMTP may timeout on cloud hosting)
-            $appEnv = getenv('APP_ENV') ?: ($_ENV['APP_ENV'] ?? 'development');
-            if ($appEnv === 'production') {
-                // Auto-verify and log user in directly
-                $lastId = (int) $this->userRepo->getDb()->lastInsertId();
-                $this->userRepo->verifyEmail($lastId);
-                $this->redirect('/login?message=registered');
-            } else {
-                // Development: send verification email as normal
-                $name = $fullName ?: $username;
-                $emailSent = $this->emailService->sendVerificationEmail($email, $name, $token);
-                $this->setSession('pending_verification_email', $email);
-                if (!$emailSent) {
-                    $this->setSession('email_send_failed', true);
-                }
-                $this->redirect('/verify-pending');
+            // Send OTP email
+            $name = $fullName ?: $username;
+            $emailSent = $this->emailService->sendVerificationEmail($email, $name, $otpCode);
+            
+            $this->setSession('pending_verification_email', $email);
+            if (!$emailSent) {
+                $this->setSession('email_send_failed', true);
             }
+            $this->redirect('/verify-pending');
         } else {
             $this->redirect('/register?error=1');
         }
@@ -166,41 +158,49 @@ class UserController extends Controller
         $email = $this->getSession('pending_verification_email');
         $emailFailed = $this->getSession('email_send_failed', false);
         $this->setSession('email_send_failed', null);
+        $otpError = $this->getSession('otp_error');
+        $this->setSession('otp_error', null);
         
         $this->view('verify-pending', [
             'title' => 'Xác thực email',
             'email' => $email,
             'emailFailed' => $emailFailed,
+            'otpError' => $otpError,
         ]);
     }
 
     /**
-     * Verify email with token
+     * Verify email with OTP code (POST from form)
      */
-    public function verifyEmail(string $token): void
+    public function verifyEmail(string $token = ''): void
     {
-        $user = $this->userRepo->findByVerificationToken($token);
+        // Support both URL token (legacy) and POST OTP
+        $otpCode = $this->getPost('otp_code') ?: $token;
+        
+        if (empty($otpCode)) {
+            $this->redirect('/verify-pending');
+            return;
+        }
+
+        $user = $this->userRepo->findByVerificationToken($otpCode);
 
         if (!$user) {
-            $this->view('verify-result', [
-                'title' => 'Xác thực thất bại',
-                'success' => false,
-                'message' => 'Link xác thực không hợp lệ hoặc đã được sử dụng.',
-            ]);
+            $email = $this->getSession('pending_verification_email');
+            $this->setSession('otp_error', 'Mã OTP không đúng. Vui lòng kiểm tra lại.');
+            $this->redirect('/verify-pending');
             return;
         }
 
         if (!$user->isTokenValid()) {
-            $this->view('verify-result', [
-                'title' => 'Link đã hết hạn',
-                'success' => false,
-                'message' => 'Link xác thực đã hết hạn. Vui lòng đăng ký lại hoặc yêu cầu gửi lại email xác thực.',
-            ]);
+            $email = $this->getSession('pending_verification_email');
+            $this->setSession('otp_error', 'Mã OTP đã hết hạn. Vui lòng gửi lại mã mới.');
+            $this->redirect('/verify-pending');
             return;
         }
 
         // Verify email
         if ($this->userRepo->verifyEmail($user->id)) {
+            $this->setSession('pending_verification_email', null);
             $this->view('verify-result', [
                 'title' => 'Xác thực thành công',
                 'success' => true,
@@ -238,9 +238,9 @@ class UserController extends Controller
             return;
         }
 
-        // Generate new token
-        $token = bin2hex(random_bytes(32));
-        $expiresAt = date('Y-m-d H:i:s', strtotime('+24 hours'));
+        // Generate new 6-digit OTP
+        $token = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        $expiresAt = date('Y-m-d H:i:s', strtotime('+10 minutes'));
 
         if ($this->userRepo->updateVerificationToken($user->id, $token, $expiresAt)) {
             $name = $user->full_name ?: $user->username;

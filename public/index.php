@@ -50,6 +50,7 @@ $router->post('/profile/change-password', 'UserController', 'changePassword');
 
 // Email verification
 $router->get('/verify-pending', 'UserController', 'verifyPending');
+$router->post('/verify-otp', 'UserController', 'verifyEmail');
 $router->get('/verify/:token', 'UserController', 'verifyEmail');
 $router->post('/resend-verification', 'UserController', 'resendVerification');
 

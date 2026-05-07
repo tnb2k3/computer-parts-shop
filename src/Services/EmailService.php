@@ -45,15 +45,13 @@ class EmailService
     }
 
     /**
-     * Send verification email to user
+     * Send OTP verification email to user
      */
-    public function sendVerificationEmail(string $toEmail, string $toName, string $token): bool
+    public function sendVerificationEmail(string $toEmail, string $toName, string $otpCode): bool
     {
-        $verificationLink = $this->getBaseUrl() . "/verify/" . $token;
+        $subject = "Mã xác thực OTP - Computer Shop";
         
-        $subject = "Xác thực email - Computer Shop";
-        
-        $body = $this->getVerificationEmailTemplate($toName, $verificationLink);
+        $body = $this->getOtpEmailTemplate($toName, $otpCode);
         
         return $this->send($toEmail, $toName, $subject, $body);
     }
@@ -75,6 +73,7 @@ class EmailService
             $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
             $mail->Port = $this->smtpPort;
             $mail->CharSet = 'UTF-8';
+            $mail->Timeout = 15; // 15 second timeout to prevent 504 Gateway Timeout
 
             // Recipients
             $mail->setFrom($this->fromEmail, $this->fromName);
@@ -95,19 +94,9 @@ class EmailService
     }
 
     /**
-     * Get base URL for verification link
+     * Get OTP email HTML template
      */
-    private function getBaseUrl(): string
-    {
-        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-        $host = $_SERVER['HTTP_HOST'] ?? 'localhost:8080';
-        return $protocol . '://' . $host;
-    }
-
-    /**
-     * Get verification email HTML template
-     */
-    private function getVerificationEmailTemplate(string $name, string $link): string
+    private function getOtpEmailTemplate(string $name, string $otpCode): string
     {
         return <<<HTML
 <!DOCTYPE html>
@@ -115,14 +104,14 @@ class EmailService
 <head>
     <meta charset="UTF-8">
     <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
         .container { max-width: 600px; margin: 0 auto; padding: 20px; }
         .header { background: linear-gradient(135deg, #d70018, #ff4757); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
         .content { background: #fff; padding: 30px; border: 1px solid #ddd; border-top: none; }
-        .btn { display: inline-block; background: #d70018; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; margin: 20px 0; }
-        .btn:hover { background: #b5001a; }
+        .otp-box { background: #f8f9fa; border: 2px dashed #d70018; border-radius: 12px; padding: 25px; text-align: center; margin: 25px 0; }
+        .otp-code { font-size: 36px; font-weight: bold; letter-spacing: 12px; color: #d70018; font-family: 'Courier New', monospace; }
         .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
-        .link { word-break: break-all; color: #666; font-size: 12px; }
+        .warning { background: #fff3cd; padding: 12px; border-radius: 8px; color: #856404; margin-top: 20px; }
     </style>
 </head>
 <body>
@@ -133,13 +122,15 @@ class EmailService
         <div class="content">
             <h2>Xin chào {$name}!</h2>
             <p>Cảm ơn bạn đã đăng ký tài khoản tại <strong>Computer Shop</strong>.</p>
-            <p>Vui lòng click vào nút bên dưới để xác thực email của bạn:</p>
-            <p style="text-align: center;">
-                <a href="{$link}" class="btn">✅ Xác thực email</a>
-            </p>
-            <p>Hoặc copy link sau vào trình duyệt:</p>
-            <p class="link">{$link}</p>
-            <p><strong>⏰ Lưu ý:</strong> Link này sẽ hết hạn sau 24 giờ.</p>
+            <p>Đây là mã OTP xác thực email của bạn:</p>
+            <div class="otp-box">
+                <div class="otp-code">{$otpCode}</div>
+            </div>
+            <p>Nhập mã này vào trang xác thực để hoàn tất đăng ký.</p>
+            <div class="warning">
+                <p>⏰ <strong>Lưu ý:</strong> Mã OTP này sẽ hết hạn sau <strong>10 phút</strong>.</p>
+                <p>🔒 Không chia sẻ mã này cho bất kỳ ai.</p>
+            </div>
             <hr>
             <p style="color: #666; font-size: 13px;">Nếu bạn không đăng ký tài khoản này, vui lòng bỏ qua email này.</p>
         </div>

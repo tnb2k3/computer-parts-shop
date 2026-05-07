@@ -79,12 +79,12 @@ class User
     }
 
     /**
-     * Generate a random verification token
+     * Generate a 6-digit OTP code
      */
     public function generateVerificationToken(): string
     {
-        $this->verification_token = bin2hex(random_bytes(32));
-        $this->token_expires_at = date('Y-m-d H:i:s', strtotime('+24 hours'));
+        $this->verification_token = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        $this->token_expires_at = date('Y-m-d H:i:s', strtotime('+10 minutes'));
         return $this->verification_token;
     }
 
