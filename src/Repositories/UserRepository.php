@@ -15,6 +15,11 @@ class UserRepository
         $this->db = Connection::getInstance();
     }
 
+    public function getDb(): PDO
+    {
+        return $this->db;
+    }
+
     /**
      * Find user by email
      */

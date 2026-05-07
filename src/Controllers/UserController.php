@@ -136,18 +136,21 @@ class UserController extends Controller
         $token = $user->generateVerificationToken();
 
         if ($this->userRepo->create($user)) {
-            // Send verification email
-            $name = $fullName ?: $username;
-            $emailSent = $this->emailService->sendVerificationEmail($email, $name, $token);
-            
-            if ($emailSent) {
-                // Store email in session to display on pending page
-                $this->setSession('pending_verification_email', $email);
-                $this->redirect('/verify-pending');
+            // Auto-verify email on production (SMTP may timeout on cloud hosting)
+            $appEnv = getenv('APP_ENV') ?: ($_ENV['APP_ENV'] ?? 'development');
+            if ($appEnv === 'production') {
+                // Auto-verify and log user in directly
+                $lastId = (int) $this->userRepo->getDb()->lastInsertId();
+                $this->userRepo->verifyEmail($lastId);
+                $this->redirect('/login?message=registered');
             } else {
-                // Email failed but user created - still redirect to pending with warning
+                // Development: send verification email as normal
+                $name = $fullName ?: $username;
+                $emailSent = $this->emailService->sendVerificationEmail($email, $name, $token);
                 $this->setSession('pending_verification_email', $email);
-                $this->setSession('email_send_failed', true);
+                if (!$emailSent) {
+                    $this->setSession('email_send_failed', true);
+                }
                 $this->redirect('/verify-pending');
             }
         } else {
